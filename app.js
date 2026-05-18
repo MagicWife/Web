@@ -13,6 +13,9 @@ let frames = [];
 let rowsForCsv = [];
 let latestTele = null;
 
+let isRecording = false;
+let recordBuffer = [];
+
 const dom = {
   btState: document.getElementById("btState"),
   deviceName: document.getElementById("deviceName"),
@@ -47,6 +50,7 @@ const dom = {
 document.getElementById("btnConnect").addEventListener("click", connectBle);
 document.getElementById("btnDisconnect").addEventListener("click", disconnectBle);
 document.getElementById("btnSetTcycle").addEventListener("click", sendTcycle);
+document.getElementById("btnRecord").addEventListener("click", toggleRecord);
 
 function setState(kind, text) {
   dom.btState.textContent = text;
@@ -118,6 +122,38 @@ function onDisconnected() {
   rxBuffer = "";
   renderFrames();
   clearWaveCharts();
+  if (isRecording) stopRecord();
+}
+
+function toggleRecord() {
+  if (!isRecording) {
+    isRecording = true;
+    recordBuffer = [];
+    const btn = document.getElementById("btnRecord");
+    btn.textContent = "停止记录";
+    btn.style.background = "rgba(255,123,136,.25)";
+    btn.style.border = "1px solid rgba(255,123,136,.4)";
+  } else {
+    stopRecord();
+  }
+}
+
+function stopRecord() {
+  isRecording = false;
+  const btn = document.getElementById("btnRecord");
+  btn.textContent = "开始记录";
+  btn.style.background = "";
+  btn.style.border = "";
+
+  if (!recordBuffer.length) return;
+  const header = "ax,ay,az,v5,v6,ms";
+  const content = [header, ...recordBuffer].join("\n");
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `ble_record_${Date.now()}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 async function disconnectBle() {
@@ -174,6 +210,10 @@ function onFrame(payloadCsv) {
 
   dom.frameCount.textContent = String(rowsForCsv.length);
   dom.lastReceive.textContent = fmtNow();
+
+  if (isRecording) {
+    recordBuffer.push(`${tele.ax},${tele.ay},${tele.az},${tele.v5},${tele.v6},${tele.ms}`);
+  }
 
   renderTelemetry(tele);
   pushWaveSample(tele);
