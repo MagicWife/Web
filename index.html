@@ -38,8 +38,6 @@
         <div class="button-grid">
           <button id="btnConnect" class="btn btn-primary">连接蓝牙</button>
           <button id="btnDisconnect" class="btn btn-secondary">断开连接</button>
-          <button id="btnExport" class="btn btn-secondary">导出 CSV</button>
-          <button id="btnClearFrames" class="btn btn-secondary">清空缓存</button>
         </div>
 
         <div class="section-title">设备状态</div>
@@ -77,20 +75,13 @@
           <div class="kv-card"><span>GX / GY / GZ</span><b id="tele-gyro">-</b></div>
         </div>
 
-        <div class="section-title">电压监测</div>
-        <div class="card-list">
-          <div class="volt-card">
-            <div class="volt-head"><span>Battery V1</span><b id="v1Text">0.000 V</b></div>
-            <div class="bar"><div id="v1Bar" class="fill"></div></div>
-          </div>
-          <div class="volt-card">
-            <div class="volt-head"><span>Radar V5</span><b id="v5Text">0.000 V</b></div>
-            <div class="bar"><div id="v5Bar" class="fill"></div></div>
-          </div>
-          <div class="volt-card">
-            <div class="volt-head"><span>Radar V6</span><b id="v6Text">0.000 V</b></div>
-            <div class="bar"><div id="v6Bar" class="fill"></div></div>
-          </div>
+        <div class="section-title">实时波形 (5s)</div>
+        <div class="wave-grid">
+          <div class="wave-card"><div class="wave-label">AX (m/s²)</div><div class="wave-canvas-wrap"><canvas id="chartAx"></canvas></div></div>
+          <div class="wave-card"><div class="wave-label">AY (m/s²)</div><div class="wave-canvas-wrap"><canvas id="chartAy"></canvas></div></div>
+          <div class="wave-card"><div class="wave-label">AZ (m/s²)</div><div class="wave-canvas-wrap"><canvas id="chartAz"></canvas></div></div>
+          <div class="wave-card"><div class="wave-label">Radar V5 (V)</div><div class="wave-canvas-wrap"><canvas id="chartV5"></canvas></div></div>
+          <div class="wave-card"><div class="wave-label">Radar V6 (V)</div><div class="wave-canvas-wrap"><canvas id="chartV6"></canvas></div></div>
         </div>
 
         <div class="section-title">3D 飞机姿态 HUD</div>
@@ -137,6 +128,7 @@
     crossorigin=""
   ></script>
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
