@@ -42,22 +42,11 @@ const dom = {
     acc: document.getElementById("tele-acc"),
     gyro: document.getElementById("tele-gyro"),
   },
-  v1Text: document.getElementById("v1Text"),
-  v5Text: document.getElementById("v5Text"),
-  v6Text: document.getElementById("v6Text"),
-  v1Bar: document.getElementById("v1Bar"),
-  v5Bar: document.getElementById("v5Bar"),
-  v6Bar: document.getElementById("v6Bar"),
 };
 
 document.getElementById("btnConnect").addEventListener("click", connectBle);
 document.getElementById("btnDisconnect").addEventListener("click", disconnectBle);
 document.getElementById("btnSetTcycle").addEventListener("click", sendTcycle);
-document.getElementById("btnExport").addEventListener("click", exportCsv);
-document.getElementById("btnClearFrames").addEventListener("click", () => {
-  frames = [];
-  renderFrames();
-});
 
 function setState(kind, text) {
   dom.btState.textContent = text;
@@ -124,13 +113,16 @@ async function connectBle() {
 function onDisconnected() {
   dom.notifyState.textContent = "off";
   setState("warn", "已断开");
+  frames = [];
+  rowsForCsv = [];
+  rxBuffer = "";
+  renderFrames();
+  clearWaveCharts();
 }
 
 async function disconnectBle() {
   try {
     if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) bleDevice.gatt.disconnect();
-    dom.notifyState.textContent = "off";
-    setState("warn", "已断开");
   } catch (err) {
     console.error(err);
   }
@@ -184,7 +176,7 @@ function onFrame(payloadCsv) {
   dom.lastReceive.textContent = fmtNow();
 
   renderTelemetry(tele);
-  updateVoltageBars(tele);
+  pushWaveSample(tele);
   updateAircraftAttitude(tele);
   updateMapFromTele(tele);
   renderFrames();
@@ -247,18 +239,84 @@ function renderTelemetry(tele) {
   dom.hudYaw.textContent = `${Number(tele.yaw).toFixed(1)}°`;
 }
 
-function updateVoltageBars(tele) {
-  const v1 = Number(tele.v1) || 0;
-  const v5 = Number(tele.v5) || 0;
-  const v6 = Number(tele.v6) || 0;
-  const range = Math.max(v1, v5, v6) > 6 ? 12 : 6;
-  const pct = v => Math.max(0, Math.min(100, (v / range) * 100));
-  dom.v1Text.textContent = `${v1.toFixed(3)} V`;
-  dom.v5Text.textContent = `${v5.toFixed(4)} V`;
-  dom.v6Text.textContent = `${v6.toFixed(4)} V`;
-  dom.v1Bar.style.width = `${pct(v1)}%`;
-  dom.v5Bar.style.width = `${pct(v5)}%`;
-  dom.v6Bar.style.width = `${pct(v6)}%`;
+// ===== Wave Charts =====
+const WAVE_WINDOW_MS = 5000;
+const waveBuffer = [];
+let lastChartRender = 0;
+const CHART_RENDER_INTERVAL = 100;
+const waveCharts = {};
+
+function initWaveCharts() {
+  const makeCfg = (label, color) => ({
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label,
+        data: [],
+        borderColor: color,
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.2,
+        fill: false,
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          ticks: { color: '#96aac7', font: { size: 10 }, maxTicksLimit: 4 },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          border: { color: 'rgba(255,255,255,0.1)' }
+        }
+      }
+    }
+  });
+  waveCharts.ax = new Chart(document.getElementById('chartAx'), makeCfg('AX', '#6aa9ff'));
+  waveCharts.ay = new Chart(document.getElementById('chartAy'), makeCfg('AY', '#37d29f'));
+  waveCharts.az = new Chart(document.getElementById('chartAz'), makeCfg('AZ', '#ffbe5c'));
+  waveCharts.v5 = new Chart(document.getElementById('chartV5'), makeCfg('V5', '#ff7b88'));
+  waveCharts.v6 = new Chart(document.getElementById('chartV6'), makeCfg('V6', '#c57bff'));
+}
+
+function pushWaveSample(tele) {
+  const now = Date.now();
+  waveBuffer.push({
+    t: now,
+    ax: parseFloat(tele.ax) || 0,
+    ay: parseFloat(tele.ay) || 0,
+    az: parseFloat(tele.az) || 0,
+    v5: parseFloat(tele.v5) || 0,
+    v6: parseFloat(tele.v6) || 0,
+  });
+  const cutoff = now - WAVE_WINDOW_MS;
+  while (waveBuffer.length && waveBuffer[0].t < cutoff) waveBuffer.shift();
+
+  if (now - lastChartRender < CHART_RENDER_INTERVAL) return;
+  lastChartRender = now;
+  renderWaveCharts();
+}
+
+function renderWaveCharts() {
+  for (const key of ['ax', 'ay', 'az', 'v5', 'v6']) {
+    const ch = waveCharts[key];
+    ch.data.labels = waveBuffer.map(() => '');
+    ch.data.datasets[0].data = waveBuffer.map(d => d[key]);
+    ch.update('none');
+  }
+}
+
+function clearWaveCharts() {
+  waveBuffer.length = 0;
+  for (const ch of Object.values(waveCharts)) {
+    ch.data.labels = [];
+    ch.data.datasets[0].data = [];
+    ch.update('none');
+  }
 }
 
 function renderFrames() {
@@ -636,3 +694,4 @@ if (!navigator.bluetooth) {
 renderFrames();
 setState("warn", "未连接");
 dom.notifyState.textContent = "off";
+initWaveCharts();
