@@ -1,4 +1,4 @@
-online web: https://zhanghengee.github.io/BleTelemetryWeb/
+online web: https://magicwife.github.io/Web/
 
 # BLE Telemetry Aircraft HUD
 
